@@ -1,171 +1,420 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>IMG2TXT Settings</title>
-  <style>
-    :root {
-      --background: #ffffff;
-      --foreground: #000000;
-      --border: #000000;
-      --input: #ffffff;
-      --input-border: #000000;
-    }
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>IMG2TXT Settings</title>
+    <style>
+        :root {
+            --background: #1e1e1e;
+            --secondary-background: transparent;
+            --border: #3a3a3a;
+            --text: #f0f0f0;
+            --text-secondary: #b0b0b0;
+            --accent: #3a70a1;
+            --hover: rgba(255, 255, 255, 0.08);
+            --input-background: #333;
+        }
 
-    * {
-      margin: 0;
-      padding: 0;
-      box-sizing: border-box;
-    }
+        body {
+            margin: 0;
+            padding: 0;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            background-color: var(--background);
+            color: var(--text);
+            font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Helvetica Neue', Arial, sans-serif;
+            -webkit-font-smoothing: antialiased;
+            overflow: hidden;
+        }
 
-    body {
-      font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
-      background-color: var(--background);
-      color: var(--foreground);
-      line-height: 1.6;
-      display: flex;
-      justify-content: center;
-      align-items: center;
-      min-height: 100vh;
-      padding: 1rem;
-    }
+        .titlebar {
+            height: 38px;
+            width: 100%;
+            position: fixed;
+            top: 0;
+            left: 0;
+            background-color: var(--background);
+            z-index: 1000;
+            display: flex;
+            align-items: center;
+            -webkit-app-region: drag;
+            border-bottom: 1px solid var(--border);
+        }
 
-    .container {
-      background-color: var(--background);
-      border: 2px solid var(--border);
-      padding: 2rem;
-      width: 100%;
-      max-width: 400px;
-      position: relative;
-    }
+        .titlebar h1 {
+            margin: 0;
+            margin-left: 80px;
+            font-size: 14px;
+            font-weight: 500;
+            color: var(--text);
+        }
 
-    h1 {
-      color: var(--foreground);
-      font-size: 1.5rem;
-      margin-bottom: 1.5rem;
-      text-align: center;
-      font-weight: 700;
-      text-transform: uppercase;
-      letter-spacing: 0.05em;
-    }
+        .settings-wrapper {
+            margin-top: 38px;
+            max-width: 620px;
+            width: 100%;
+            align-self: center;
+            height: calc(100vh - 38px);
+            overflow-y: auto;
+            border: 1px solid var(--border);
+            border-top: none;
+        }
 
-    label {
-      display: block;
-      margin-bottom: 0.5rem;
-      font-weight: 600;
-      color: var(--foreground);
-    }
+        .content {
+            padding: 24px;
+        }
 
-    input[type="text"] {
-      width: 100%;
-      padding: 0.75rem;
-      margin-bottom: 1rem;
-      border: 1px solid var(--input-border);
-      font-size: 1rem;
-      background-color: var(--input);
-      color: var(--foreground);
-      transition: border-color 0.3s ease;
-    }
+        .section {
+            padding: 15px 0;
+            margin-bottom: 15px;
+            border-bottom: 1px solid var(--border);
+        }
 
-    input[type="text"]:focus {
-      outline: none;
-      border-color: var(--foreground);
-    }
+        .section:last-child {
+            border-bottom: none;
+            margin-bottom: 0;
+        }
 
-    button {
-      background-color: var(--foreground);
-      color: var(--background);
-      border: none;
-      padding: 0.75rem 1rem;
-      cursor: pointer;
-      font-size: 1rem;
-      font-weight: 600;
-      width: 100%;
-      transition: background-color 0.3s ease, color 0.3s ease;
-    }
+        .section-title {
+            font-size: 11px;
+            text-transform: uppercase;
+            letter-spacing: 0.07em;
+            color: var(--text-secondary);
+            margin-bottom: 10px;
+            font-weight: 600;
+        }
 
-    button:hover {
-      background-color: var(--background);
-      color: var(--foreground);
-      outline: 2px solid var(--foreground);
-    }
+        label {
+            display: block;
+            margin-bottom: 5px;
+            color: var(--text);
+            font-size: 13px;
+            font-weight: 400;
+        }
 
-    .instructions {
-      margin-top: 1.5rem;
-      padding-top: 1.5rem;
-      border-top: 1px solid var(--border);
-      font-size: 0.875rem;
-    }
+        input[type="text"],
+        textarea {
+            width: calc(100% - 16px);
+            padding: 8px;
+            border-radius: 6px;
+            border: 1px solid var(--border);
+            background: var(--background);
+            color: var(--text);
+            font-size: 13px;
+            transition: border-color 0.2s ease;
+            margin-bottom: 12px;
+            font-family: inherit;
+            outline: none;
+            appearance: none;
+            -webkit-appearance: none;
+        }
 
-    .instructions h2 {
-      font-size: 1rem;
-      margin-bottom: 0.5rem;
-      font-weight: 600;
-    }
+        textarea {
+            resize: vertical;
+            min-height: 100px;
+        }
 
-    .instructions ol {
-      padding-left: 1.25rem;
-    }
+        input[type="text"]:focus,
+        textarea:focus {
+            border-color: var(--accent);
+            box-shadow: 0 0 0 1px var(--accent);
+        }
 
-    .instructions li {
-      margin-bottom: 0.25rem;
-    }
+        button,
+        .save-prompt,
+        .delete-prompt,
+        .add-prompt {
+            padding: 6px 12px;
+            border-radius: 6px;
+            border: none;
+            font-size: 13px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: background-color 0.2s ease-in-out;
+            font-family: -apple-system, BlinkMacSystemFont, sans-serif;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            appearance: none;
+            -webkit-appearance: none;
+            background-color: var(--accent);
+            color: #8bbddf;
+        }
 
-    a {
-      color: var(--foreground);
-      text-decoration: underline;
-      transition: opacity 0.3s ease;
-    }
+        button:hover {
+            background-color: #4e81b2;
+        }
 
-    a:hover {
-      opacity: 0.7;
-    }
+        .prompt-item {
+            background: var(--background);
+            border-radius: 8px;
+            padding: 12px;
+            margin-bottom: 12px;
+            border: 1px solid var(--border);
+            transition: background-color 0.2s ease;
+        }
 
-    @font-face {
-      font-family: 'Inter';
-      src: url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap');
-      font-display: swap;
-    }
-  </style>
+        .prompt-item:hover {
+            background-color: var(--hover);
+        }
+
+        .prompt-actions {
+            display: flex;
+            justify-content: flex-end;
+            gap: 8px;
+            margin-top: 12px;
+        }
+
+        .delete-prompt,
+        .save-prompt {
+            background: transparent;
+            border: 1px solid var(--text-secondary);
+            color: var(--text-secondary);
+            padding: 6px 10px;
+            border-radius: 6px;
+            font-size: 12px;
+        }
+
+        .delete-prompt:hover {
+            background-color: var(--hover);
+            border-color: var(--accent);
+            color: var(--accent);
+        }
+
+        .save-prompt:hover {
+            background-color: var(--hover);
+            border-color: var(--accent);
+            color: var(--accent);
+        }
+
+        .checkbox-group {
+            display: flex;
+            gap: 16px;
+            margin: 12px 0;
+            align-items: center;
+        }
+
+        .checkbox-label {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            cursor: pointer;
+            font-size: 13px;
+            color: var(--text);
+        }
+
+        input[type="checkbox"] {
+            appearance: none;
+            width: 15px;
+            height: 15px;
+            border: 1px solid var(--text-secondary);
+            border-radius: 3px;
+            background-color: transparent;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: background-color 0.2s ease, border-color 0.2s ease;
+        }
+
+        input[type="checkbox"]:checked {
+            background-color: var(--accent);
+            border-color: var(--accent);
+        }
+
+        input[type="checkbox"]:checked::before {
+            content: '✓';
+            color: #fff;
+            font-size: 10px;
+        }
+
+        .add-prompt {
+            margin-top: 15px;
+            background: transparent;
+            border: 1px dashed var(--accent);
+            color: var(--accent);
+            padding: 8px;
+            border-radius: 6px;
+            transition: background-color 0.2s ease;
+            text-align: center;
+            width: 100%;
+        }
+
+        .add-prompt:hover {
+            background-color: var(--hover);
+        }
+
+        .api-form {
+            margin-bottom: 15px;
+        }
+
+        .instructions {
+            margin-top: 15px;
+            padding-top: 15px;
+            border-top: 1px solid var(--border);
+            font-size: 12px;
+            color: var(--text-secondary);
+        }
+
+        .instructions h3 {
+            color: var(--text);
+            font-size: 13px;
+            margin-bottom: 8px;
+            font-weight: 500;
+        }
+
+        .instructions ol {
+            padding-left: 20px;
+            margin-bottom: 10px;
+        }
+
+        .instructions li {
+            margin-bottom: 5px;
+            line-height: 1.4;
+        }
+
+        a {
+            color: var(--accent);
+            text-decoration: none;
+            font-weight: 500;
+            transition: color 0.2s ease;
+        }
+
+        a:hover {
+            text-decoration: underline;
+            color: #64b5f6cc;
+        }
+    </style>
 </head>
 <body>
-  <div class="container">
-    <h1>IMG2TXT Settings</h1>
-    <form id="settings-form">
-      <label for="apiKey">Gemini API Key</label>
-      <input type="text" id="apiKey" placeholder="Enter your Gemini API key" required>
-      <button type="submit">Save Settings</button>
-    </form>
-    <div class="instructions">
-      <h2>How to get a Gemini API key:</h2>
-      <ol>
-        <li>Visit <a href="https://aistudio.google.com/app/apikey" target="_blank" rel="noopener noreferrer">Google AI Studio</a></li>
-        <li>Click "Create API key"</li>
-        <li>Copy and paste the API key above</li>
-      </ol>
+    <div class="titlebar">
     </div>
-  </div>
-  <script>
-    const { ipcRenderer } = require('electron');
+    <div class="settings-wrapper">
+        <div class="content">
+            <form id="api-settings" class="api-form">
+                <label for="apiKey">Gemini API Key</label>
+                <input type="text" id="apiKey" placeholder="Enter your Gemini API key" required>
+                <button type="submit">Save API Key</button>
+            </form>
+            <div class="instructions">
+                <h3>How to get a Gemini API key:</h3>
+                <ol>
+                    <li>Visit <a href="https://aistudio.google.com/app/apikey" target="_blank" rel="noopener noreferrer">Google AI Studio</a></li>
+                    <li>Click "Create API key"</li>
+                    <li>Copy and paste the API key above</li>
+                </ol>
+            </div>
 
-    async function loadSettings() {
-      const apiKey = await ipcRenderer.invoke('get-api-key');
-      if (apiKey) {
-        document.getElementById('apiKey').value = apiKey;
-      }
-    }
+            <div class="section">
+                <h2 class="section-title">Custom Prompts</h2>
+                <div id="prompts-list">
+                </div>
+                <button type="button" id="addPrompt" class="add-prompt">Add New Prompt</button>
+            </div>
+        </div>
+    </div>
 
-    function saveSettings(e) {
-      e.preventDefault();
-      const apiKey = document.getElementById('apiKey').value.trim();
-      if (apiKey) {
-        ipcRenderer.send('save-api-key', apiKey);
-      }
-    }
+    <script>
+        const { ipcRenderer } = require('electron');
 
-    document.getElementById('settings-form').addEventListener('submit', saveSettings);
-    loadSettings();
-  </script>
+        async function loadSettings() {
+            const apiKey = await ipcRenderer.invoke('get-api-key');
+            if (apiKey) {
+                document.getElementById('apiKey').value = apiKey;
+            }
+        }
+
+        function saveApiKey(e) {
+            e.preventDefault();
+            const apiKey = document.getElementById('apiKey').value.trim();
+            if (apiKey) {
+                ipcRenderer.send('save-api-key', apiKey);
+            }
+        }
+
+        let customPrompts = [];
+
+        async function loadPrompts() {
+            customPrompts = await ipcRenderer.invoke('get-custom-prompts');
+            renderPrompts();
+        }
+
+        function createPromptElement(prompt, index) {
+            const promptItem = document.createElement('div');
+            promptItem.className = 'prompt-item';
+            promptItem.dataset.index = index;
+
+            promptItem.innerHTML = `
+                <label>Name</label>
+                <input type="text" class="prompt-name" value="${prompt.name}" placeholder="Enter prompt name" required>
+
+                <label>Prompt</label>
+                <textarea class="prompt-text" placeholder="Enter your prompt here..." required>${prompt.prompt}</textarea>
+
+                <div class="checkbox-group">
+                    <label class="checkbox-label">
+                        <input type="checkbox" class="copy-clipboard" ${prompt.copyToClipboard ? 'checked' : ''}>
+                        Copy to clipboard
+                    </label>
+                    <label class="checkbox-label">
+                        <input type="checkbox" class="close-after" ${prompt.closeAfterResponse ? 'checked' : ''}>
+                        Close after response
+                    </label>
+                </div>
+
+                <div class="prompt-actions">
+                    <button type="button" class="save-prompt" onclick="savePrompt(${index})">Save Changes</button>
+                    <button type="button" class="delete-prompt" onclick="deletePrompt(${index})">Delete</button>
+                </div>
+            `;
+            return promptItem;
+        }
+
+        function renderPrompts() {
+            const container = document.getElementById('prompts-list');
+            container.innerHTML = '';
+            customPrompts.forEach((prompt, index) => {
+                container.appendChild(createPromptElement(prompt, index));
+            });
+        }
+
+        function savePrompt(index) {
+            const promptEl = document.querySelector(`[data-index="${index}"]`);
+            const updatedPrompt = {
+                name: promptEl.querySelector('.prompt-name').value,
+                prompt: promptEl.querySelector('.prompt-text').value,
+                copyToClipboard: promptEl.querySelector('.copy-clipboard').checked,
+                closeAfterResponse: promptEl.querySelector('.close-after').checked
+            };
+
+            customPrompts[index] = updatedPrompt;
+            ipcRenderer.send('save-custom-prompts', customPrompts);
+            renderPrompts();
+        }
+
+        function deletePrompt(index) {
+            customPrompts.splice(index, 1);
+            ipcRenderer.send('save-custom-prompts', customPrompts);
+            renderPrompts();
+        }
+
+        function addNewPrompt() {
+            customPrompts.push({
+                name: 'New Prompt',
+                prompt: 'Enter your prompt here...',
+                copyToClipboard: false,
+                closeAfterResponse: false
+            });
+            renderPrompts();
+        }
+
+        document.getElementById('api-settings').addEventListener('submit', saveApiKey);
+        document.getElementById('addPrompt').addEventListener('click', addNewPrompt);
+
+        loadSettings();
+        loadPrompts();
+    </script>
 </body>
 </html>

@@ -6,10 +6,31 @@ const { GoogleGenerativeAI } = require("@google/generative-ai")
 const Store = require('electron-store')
 const { nativeImage } = require('electron')
 
-const store = new Store()
+const store = new Store({
+  defaults: {
+    customPrompts: [
+      {
+        name: 'Extract Text',
+        prompt: 'Extract and return only the text from this image, without any additional commentary.',
+        copyToClipboard: true,
+        closeAfterResponse: false
+      },
+      {
+        name: 'Analyze Image',
+        prompt: 'Analyze this image and describe what you see in detail.',
+        copyToClipboard: false,
+        closeAfterResponse: false
+      }
+    ]
+  }
+})
+
 let tray = null
 let settingsWindow = null
+let chatWindow = null
 let genAI = null
+let currentScreenshot = null
+let currentChat = null
 
 function initializeGeminiAPI() {
   const apiKey = store.get('geminiApiKey')
@@ -20,7 +41,7 @@ function initializeGeminiAPI() {
   return false
 }
 
-const createSettingsWindow = () => {
+function createSettingsWindow() {
   if (settingsWindow) {
     settingsWindow.focus()
     return
@@ -28,15 +49,18 @@ const createSettingsWindow = () => {
 
   settingsWindow = new BrowserWindow({
     width: 500,
-    height: 400,
+    height: 600,
     webPreferences: {
       nodeIntegration: true,
       contextIsolation: false
     },
-    show: false
+    show: false,
+    titleBarStyle: 'hidden',
+    trafficLightPosition: { x: 15, y: 15 }
   })
 
   settingsWindow.loadFile('settings.html')
+
   settingsWindow.once('ready-to-show', () => {
     settingsWindow.show()
   })
@@ -46,7 +70,42 @@ const createSettingsWindow = () => {
   })
 }
 
-const createTray = () => {
+function createChatWindow() {
+  if (chatWindow) {
+    chatWindow.webContents.send('reset-chat')
+    chatWindow.focus()
+    return
+  }
+
+  chatWindow = new BrowserWindow({
+    width: 800,
+    height: 600,
+    webPreferences: {
+      nodeIntegration: true,
+      contextIsolation: false
+    },
+    show: false,
+    titleBarStyle: 'hidden',
+    trafficLightPosition: { x: 15, y: 15 }
+  })
+
+  chatWindow.loadFile('chat.html')
+
+  chatWindow.once('ready-to-show', () => {
+    chatWindow.show()
+    if (currentScreenshot) {
+      chatWindow.webContents.send('screenshot-taken', currentScreenshot)
+    }
+  })
+
+  chatWindow.on('closed', () => {
+    chatWindow = null
+    currentScreenshot = null
+    currentChat = null
+  })
+}
+
+function createTray() {
   const icon = nativeImage.createFromPath(path.join(__dirname, 'icon.png'))
 
   if (process.platform === 'darwin') {
@@ -96,10 +155,10 @@ async function takeScreenshot() {
   }
 
   try {
-    tray.setToolTip('Processing screenshot...')
+    tray.setToolTip('Taking screenshot...')
 
     const tempDir = path.join(app.getPath('temp'), 'screenshot-ocr')
-    if (!fs.existsSync(tempDir)){
+    if (!fs.existsSync(tempDir)) {
       fs.mkdirSync(tempDir, { recursive: true })
     }
 
@@ -110,21 +169,19 @@ async function takeScreenshot() {
       return
     }
 
-    tray.setToolTip('Converting image...')
     const imageBuffer = fs.readFileSync(screenshotPath)
-    const base64Image = imageBuffer.toString('base64')
+    currentChat = null
+    currentScreenshot = imageBuffer.toString('base64')
 
-    tray.setToolTip('Processing with Gemini...')
-    const text = await processImage(base64Image)
-    if (!text) throw new Error('No text was detected')
+    if (chatWindow) {
+      chatWindow.webContents.send('reset-chat')
+      chatWindow.webContents.send('screenshot-taken', currentScreenshot)
+      chatWindow.focus()
+    } else {
+      createChatWindow()
+    }
 
-    clipboard.writeText(text)
     fs.unlinkSync(screenshotPath)
-
-    new Notification({
-      title: 'Screenshot OCR',
-      body: 'Text copied to clipboard!'
-    }).show()
 
   } catch (error) {
     new Notification({
@@ -136,32 +193,39 @@ async function takeScreenshot() {
   }
 }
 
-async function processImage(base64Image) {
+async function processImageWithPrompt(base64Image, prompt, shouldStream = false, event = null) {
   try {
-    const model = genAI.getGenerativeModel({ model: "gemini-1.5-pro" })
+    if (!currentChat) {
+      const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash-exp" })
+      currentChat = model.startChat({
+        history: [],
+        generationConfig: {
+          temperature: 1.0,
+          maxOutputTokens: 2048,
+        },
+      })
+    }
 
-    const result = await model.generateContent([
-      {
-        inlineData: {
-          data: base64Image,
-          mimeType: "image/png"
+    const message = [{
+      inlineData: {
+        data: base64Image,
+        mimeType: "image/png"
+      }
+    }, prompt]
+
+    if (shouldStream) {
+      const result = await currentChat.sendMessageStream(message)
+      for await (const chunk of result.stream) {
+        const chunkText = chunk.text()
+        if (event) {
+          event.sender.send('stream-chunk', chunkText)
         }
-      },
-      `You are an advanced image analysis AI capable of extracting text from images. Your task is to carefully examine the provided image and extract any text content it contains.
-
-                            Please follow these steps:
-
-                            1. Extract the text:
-                               - Carefully read and transcribe all text visible in the image.
-                               - Sanitize the extracted text.
-
-                            2. Output the extracted text:
-                               - Provide only the extracted text, without any additional commentary or formatting.
-
-                            Remember, your final output should contain only the extracted text, nothing else.`
-    ])
-
-    return result.response.text()
+      }
+      return null
+    } else {
+      const result = await currentChat.sendMessage(message)
+      return result.response.text()
+    }
   } catch (error) {
     throw new Error(error.message || 'Failed to process image')
   }
@@ -181,6 +245,31 @@ ipcMain.on('save-api-key', (event, apiKey) => {
 
 ipcMain.handle('get-api-key', () => {
   return store.get('geminiApiKey')
+})
+
+ipcMain.handle('get-custom-prompts', () => {
+  return store.get('customPrompts')
+})
+
+ipcMain.handle('process-image', async (event, { prompt, stream }) => {
+  if (!currentScreenshot) throw new Error('No screenshot available')
+  return processImageWithPrompt(currentScreenshot, prompt, stream, event)
+})
+
+ipcMain.on('save-custom-prompts', (event, prompts) => {
+  store.set('customPrompts', prompts)
+})
+
+ipcMain.on('copy-to-clipboard', (event, text) => {
+  clipboard.writeText(text)
+  new Notification({
+    title: 'Screenshot OCR',
+    body: 'Text copied to clipboard!'
+  }).show()
+})
+
+ipcMain.on('reset-chat', () => {
+  currentChat = null
 })
 
 app.whenReady().then(() => {
