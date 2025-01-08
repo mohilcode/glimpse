@@ -1,6 +1,25 @@
 {
-  "name": "screenshot-ocr",
+  "name": "glimpse",
   "version": "1.0.0",
+  "description": "Select anything on your screen to understand it with AI",
+  "author": {
+    "name": "Mohil"
+  },
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/mohilcode/glimpse"
+  },
+  "keywords": [
+    "electron",
+    "screenshot",
+    "ai",
+    "gemini",
+    "desktop",
+    "macos",
+    "select-to-search",
+    "visual-search"
+  ],
   "main": "main.js",
   "scripts": {
     "start": "electron .",
@@ -8,7 +27,8 @@
     "dist": "electron-builder"
   },
   "build": {
-    "appId": "com.screenshot.ocr",
+    "appId": "com.mohil.glimpse",
+    "productName": "Glimpse",
     "files": [
       "main.js",
       "settings.html",
@@ -35,5 +55,8 @@
   "devDependencies": {
     "electron": "^28.1.0",
     "electron-builder": "^24.9.1"
+  },
+  "engines": {
+    "node": ">=18.0.0"
   }
 }

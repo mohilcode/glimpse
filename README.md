@@ -1,4 +1,4 @@
-# Screenshot OCR
+# Glimpse
 
 A simple Mac app that lets you take screenshots and analyze them using Google's Gemini. Just capture any part of your screen and get instant text extraction or analysis. I mostly use it to get text from an image quickly or for translation purposes.
 
