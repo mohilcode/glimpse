@@ -1,0 +1,30 @@
+{
+  "name": "screenshot-ocr",
+  "version": "1.0.0",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron .",
+    "pack": "electron-builder --dir",
+    "dist": "electron-builder"
+  },
+"build": {
+    "files": [
+        "**/*",
+        "icon.png"
+    ],
+    "appId": "com.screenshot.ocr",
+    "mac": {
+        "category": "public.app-category.utilities",
+        "icon": "icon.icns",
+        "target": ["dmg"]
+    }
+},
+  "dependencies": {
+    "@google/generative-ai": "^0.21.0",
+    "electron-store": "^8.2.0"
+  },
+  "devDependencies": {
+    "electron": "^28.3.3",
+    "electron-builder": "^24.13.3"
+  }
+}
