@@ -7,7 +7,6 @@ const Store = require('electron-store')
 const { nativeImage } = require('electron')
 
 const store = new Store()
-const mainWindow = null
 let tray = null
 let settingsWindow = null
 let genAI = null
@@ -108,7 +107,7 @@ async function takeScreenshot() {
     execSync(`screencapture -i "${screenshotPath}"`)
 
     if (!fs.existsSync(screenshotPath)) {
-      return  // User cancelled screenshot
+      return
     }
 
     tray.setToolTip('Converting image...')

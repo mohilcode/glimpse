@@ -4,5 +4,7 @@
 <dict>
     <key>NSScreenCaptureUsageDescription</key>
     <string>This app needs access to screen capture to perform OCR on screenshots.</string>
+    <key>NSUserNotificationAlertStyle</key>
+    <string>alert</string>
 </dict>
 </plist>
