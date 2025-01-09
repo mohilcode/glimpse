@@ -1,6 +1,6 @@
 # Glimpse
 
-Circle to search but for Mac.A simple app that lets you take screenshots and analyze them using Google's Gemini. Just capture any part of your screen and get instant text extraction, analysis or translation.
+Circle to search but for Mac. A simple app that lets you take screenshots and analyze them using Google's Gemini. Just capture any part of your screen and get instant text extraction, analysis or translation.
 
 ## Quick Start
 
