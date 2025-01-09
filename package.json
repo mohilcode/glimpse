@@ -27,21 +27,19 @@
     "build": "npm run clean && tsc && npm run copy-templates",
     "start": "npm run build && electron .",
     "pack": "npm run build && electron-builder --dir",
-    "dist": "npm run build && electron-builder"
+    "dist": "npm run build && electron-builder",
+    "format": "biome format --write .",
+    "lint": "biome lint .",
+    "check": "biome check --write ."
   },
   "build": {
     "appId": "com.mohil.glimpse",
     "productName": "Glimpse",
-    "files": [
-      "dist/**/*",
-      "public/**/*"
-    ],
+    "files": ["dist/**/*", "public/**/*"],
     "mac": {
       "category": "public.app-category.utilities",
       "icon": "public/icon.png",
-      "target": [
-        "dmg"
-      ]
+      "target": ["dmg"]
     },
     "asar": true,
     "compression": "maximum",
@@ -54,6 +52,7 @@
     "electron-store": "^8.2.0"
   },
   "devDependencies": {
+    "@biomejs/biome": "1.9.4",
     "@types/electron": "^1.6.10",
     "@types/node": "^20.11.16",
     "electron": "^28.1.0",
