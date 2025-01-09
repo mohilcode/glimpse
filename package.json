@@ -23,7 +23,8 @@
   "main": "dist/main.js",
   "scripts": {
     "clean": "rimraf dist",
-    "build": "npm run clean && tsc",
+    "copy-templates": "cp -r src/templates dist/",
+    "build": "npm run clean && tsc && npm run copy-templates",
     "start": "npm run build && electron .",
     "pack": "npm run build && electron-builder --dir",
     "dist": "npm run build && electron-builder"
@@ -33,13 +34,11 @@
     "productName": "Glimpse",
     "files": [
       "dist/**/*",
-      "settings.html",
-      "chat.html",
-      "icon.png"
+      "public/**/*"
     ],
     "mac": {
       "category": "public.app-category.utilities",
-      "icon": "icon.icns",
+      "icon": "public/icon.png",
       "target": [
         "dmg"
       ]

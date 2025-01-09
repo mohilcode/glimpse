@@ -35,7 +35,10 @@ interface ProcessImageRequest {
 }
 
 const loadFile = (filename: string): string => {
-  return path.join(__dirname, '..', filename)
+  if (filename.endsWith('.html')) {
+    return path.join(__dirname, 'templates', filename)
+  }
+  return path.join(__dirname, '..', 'public', filename)
 }
 
 const store = new Store<StoreSchema>({
