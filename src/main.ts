@@ -1,13 +1,46 @@
-const { app, BrowserWindow, globalShortcut, clipboard, Tray, Menu, Notification, ipcMain } = require('electron')
-const path = require('node:path')
-const { execSync } = require('node:child_process')
-const fs = require('node:fs')
-const { GoogleGenerativeAI } = require("@google/generative-ai")
-const Store = require('electron-store')
-const { nativeImage } = require('electron')
+import {
+  app,
+  BrowserWindow,
+  globalShortcut,
+  clipboard,
+  Tray,
+  Menu,
+  Notification,
+  ipcMain,
+  nativeImage,
+  IpcMainInvokeEvent,
+  Event
+} from 'electron'
+import path from 'path'
+import { execSync } from 'child_process'
+import fs from 'fs'
+import { GoogleGenerativeAI, ChatSession } from '@google/generative-ai'
+import Store from 'electron-store'
 
-const store = new Store({
+interface CustomPrompt {
+  name: string
+  prompt: string
+  copyToClipboard: boolean
+  closeAfterResponse: boolean
+}
+
+interface StoreSchema {
+  geminiApiKey: string
+  customPrompts: CustomPrompt[]
+}
+
+interface ProcessImageRequest {
+  prompt: string
+  stream: boolean
+}
+
+const loadFile = (filename: string): string => {
+  return path.join(__dirname, '..', filename)
+}
+
+const store = new Store<StoreSchema>({
   defaults: {
+    geminiApiKey: '',
     customPrompts: [
       {
         name: 'Extract Text',
@@ -25,14 +58,14 @@ const store = new Store({
   }
 })
 
-let tray = null
-let settingsWindow = null
-let chatWindow = null
-let genAI = null
-let currentScreenshot = null
-let currentChat = null
+let tray: Tray | null = null
+let settingsWindow: BrowserWindow | null = null
+let chatWindow: BrowserWindow | null = null
+let genAI: GoogleGenerativeAI | null = null
+let currentScreenshot: string | null = null
+let currentChat: ChatSession | null = null
 
-function initializeGeminiAPI() {
+function initializeGeminiAPI(): boolean {
   const apiKey = store.get('geminiApiKey')
   if (apiKey) {
     genAI = new GoogleGenerativeAI(apiKey)
@@ -41,7 +74,7 @@ function initializeGeminiAPI() {
   return false
 }
 
-function createSettingsWindow() {
+function createSettingsWindow(): void {
   if (settingsWindow) {
     settingsWindow.focus()
     return
@@ -59,10 +92,10 @@ function createSettingsWindow() {
     trafficLightPosition: { x: 15, y: 15 }
   })
 
-  settingsWindow.loadFile('settings.html')
+  settingsWindow.loadFile(loadFile('settings.html'))
 
   settingsWindow.once('ready-to-show', () => {
-    settingsWindow.show()
+    settingsWindow?.show()
   })
 
   settingsWindow.on('closed', () => {
@@ -70,7 +103,7 @@ function createSettingsWindow() {
   })
 }
 
-function createChatWindow() {
+function createChatWindow(): void {
   if (chatWindow) {
     chatWindow.webContents.send('reset-chat')
     chatWindow.focus()
@@ -89,12 +122,12 @@ function createChatWindow() {
     trafficLightPosition: { x: 15, y: 15 }
   })
 
-  chatWindow.loadFile('chat.html')
+  chatWindow.loadFile(loadFile('chat.html'))
 
   chatWindow.once('ready-to-show', () => {
-    chatWindow.show()
+    chatWindow?.show()
     if (currentScreenshot) {
-      chatWindow.webContents.send('screenshot-taken', currentScreenshot)
+      chatWindow?.webContents.send('screenshot-taken', currentScreenshot)
     }
   })
 
@@ -105,8 +138,8 @@ function createChatWindow() {
   })
 }
 
-function createTray() {
-  const icon = nativeImage.createFromPath(path.join(__dirname, 'icon.png'))
+function createTray(): void {
+  const icon = nativeImage.createFromPath(loadFile('icon.png'))
 
   if (process.platform === 'darwin') {
     const resizedIcon = icon.resize({
@@ -144,7 +177,7 @@ function createTray() {
   tray.setContextMenu(contextMenu)
 }
 
-async function takeScreenshot() {
+async function takeScreenshot(): Promise<void> {
   if (!initializeGeminiAPI()) {
     new Notification({
       title: 'Screenshot OCR',
@@ -155,7 +188,7 @@ async function takeScreenshot() {
   }
 
   try {
-    tray.setToolTip('Taking screenshot...')
+    tray?.setToolTip('Taking screenshot...')
 
     const tempDir = path.join(app.getPath('temp'), 'screenshot-ocr')
     if (!fs.existsSync(tempDir)) {
@@ -186,15 +219,22 @@ async function takeScreenshot() {
   } catch (error) {
     new Notification({
       title: 'Screenshot OCR',
-      body: `Error: ${error.message}`
+      body: `Error: ${error instanceof Error ? error.message : 'Unknown error'}`
     }).show()
   } finally {
-    tray.setToolTip('Screenshot OCR')
+    tray?.setToolTip('Screenshot OCR')
   }
 }
 
-async function processImageWithPrompt(base64Image, prompt, shouldStream = false, event = null) {
+async function processImageWithPrompt(
+  base64Image: string,
+  prompt: string,
+  shouldStream = false,
+  event: IpcMainInvokeEvent | null = null
+): Promise<string | null> {
   try {
+    if (!genAI) throw new Error('Gemini API not initialized')
+
     if (!currentChat) {
       const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash-exp" })
       currentChat = model.startChat({
@@ -217,9 +257,7 @@ async function processImageWithPrompt(base64Image, prompt, shouldStream = false,
       const result = await currentChat.sendMessageStream(message)
       for await (const chunk of result.stream) {
         const chunkText = chunk.text()
-        if (event) {
-          event.sender.send('stream-chunk', chunkText)
-        }
+        event?.sender.send('stream-chunk', chunkText)
       }
       return null
     } else {
@@ -227,20 +265,18 @@ async function processImageWithPrompt(base64Image, prompt, shouldStream = false,
       return result.response.text()
     }
   } catch (error) {
-    throw new Error(error.message || 'Failed to process image')
+    throw new Error(error instanceof Error ? error.message : 'Failed to process image')
   }
 }
 
-ipcMain.on('save-api-key', (event, apiKey) => {
+ipcMain.on('save-api-key', (_event, apiKey: string) => {
   store.set('geminiApiKey', apiKey)
   initializeGeminiAPI()
   new Notification({
     title: 'Screenshot OCR',
     body: 'API key saved successfully!'
   }).show()
-  if (settingsWindow) {
-    settingsWindow.close()
-  }
+  settingsWindow?.close()
 })
 
 ipcMain.handle('get-api-key', () => {
@@ -251,16 +287,16 @@ ipcMain.handle('get-custom-prompts', () => {
   return store.get('customPrompts')
 })
 
-ipcMain.handle('process-image', async (event, { prompt, stream }) => {
+ipcMain.handle('process-image', async (event: IpcMainInvokeEvent, { prompt, stream }: ProcessImageRequest) => {
   if (!currentScreenshot) throw new Error('No screenshot available')
   return processImageWithPrompt(currentScreenshot, prompt, stream, event)
 })
 
-ipcMain.on('save-custom-prompts', (event, prompts) => {
+ipcMain.on('save-custom-prompts', (_event, prompts: CustomPrompt[]) => {
   store.set('customPrompts', prompts)
 })
 
-ipcMain.on('copy-to-clipboard', (event, text) => {
+ipcMain.on('copy-to-clipboard', (_event, text: string) => {
   clipboard.writeText(text)
   new Notification({
     title: 'Screenshot OCR',
@@ -284,6 +320,6 @@ app.whenReady().then(() => {
   })
 })
 
-app.on('window-all-closed', (e) => {
+app.on('window-all-closed', (e: Event) => {
   e.preventDefault()
 })

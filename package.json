@@ -20,17 +20,19 @@
     "select-to-search",
     "visual-search"
   ],
-  "main": "main.js",
+  "main": "dist/main.js",
   "scripts": {
-    "start": "electron .",
-    "pack": "electron-builder --dir",
-    "dist": "electron-builder"
+    "clean": "rimraf dist",
+    "build": "npm run clean && tsc",
+    "start": "npm run build && electron .",
+    "pack": "npm run build && electron-builder --dir",
+    "dist": "npm run build && electron-builder"
   },
   "build": {
     "appId": "com.mohil.glimpse",
     "productName": "Glimpse",
     "files": [
-      "main.js",
+      "dist/**/*",
       "settings.html",
       "chat.html",
       "icon.png"
@@ -53,8 +55,12 @@
     "electron-store": "^8.2.0"
   },
   "devDependencies": {
+    "@types/electron": "^1.6.10",
+    "@types/node": "^20.11.16",
     "electron": "^28.1.0",
-    "electron-builder": "^24.9.1"
+    "electron-builder": "^24.9.1",
+    "rimraf": "^6.0.1",
+    "typescript": "^5.3.3"
   },
   "engines": {
     "node": ">=18.0.0"
