@@ -1,7 +1,7 @@
 import { execSync } from 'node:child_process'
 import fs from 'node:fs'
 import path from 'node:path'
-import { type ChatSession, GoogleGenerativeAI } from '@google/generative-ai'
+import { GoogleGenerativeAI, type Content, type Part } from '@google/generative-ai'
 import {
   BrowserWindow,
   type Event,
@@ -12,7 +12,7 @@ import {
   clipboard,
   globalShortcut,
   ipcMain,
-  nativeImage,
+  nativeImage
 } from 'electron'
 import Store from 'electron-store'
 
@@ -46,19 +46,18 @@ const store = new Store<StoreSchema>({
     customPrompts: [
       {
         name: 'Extract Text',
-        prompt:
-          'Extract and return only the text from this image, without any additional commentary.',
+        prompt: 'Extract and return only the text from this image, without any additional commentary.',
         copyToClipboard: true,
-        closeAfterResponse: false,
+        closeAfterResponse: false
       },
       {
         name: 'Analyze Image',
         prompt: 'Analyze this image and describe what you see in detail.',
         copyToClipboard: false,
-        closeAfterResponse: false,
-      },
-    ],
-  },
+        closeAfterResponse: false
+      }
+    ]
+  }
 })
 
 let tray: Tray | null = null
@@ -66,7 +65,7 @@ let settingsWindow: BrowserWindow | null = null
 let chatWindow: BrowserWindow | null = null
 let genAI: GoogleGenerativeAI | null = null
 let currentScreenshot: string | null = null
-let currentChat: ChatSession | null = null
+let messageHistory: Content[] = []
 
 function initializeGeminiAPI(): boolean {
   const apiKey = store.get('geminiApiKey')
@@ -88,11 +87,11 @@ function createSettingsWindow(): void {
     height: 600,
     webPreferences: {
       nodeIntegration: true,
-      contextIsolation: false,
+      contextIsolation: false
     },
     show: false,
     titleBarStyle: 'hidden',
-    trafficLightPosition: { x: 15, y: 15 },
+    trafficLightPosition: { x: 15, y: 15 }
   })
 
   settingsWindow.loadFile(loadFile('settings.html'))
@@ -118,11 +117,11 @@ function createChatWindow(): void {
     height: 600,
     webPreferences: {
       nodeIntegration: true,
-      contextIsolation: false,
+      contextIsolation: false
     },
     show: false,
     titleBarStyle: 'hidden',
-    trafficLightPosition: { x: 15, y: 15 },
+    trafficLightPosition: { x: 15, y: 15 }
   })
 
   chatWindow.loadFile(loadFile('chat.html'))
@@ -137,7 +136,7 @@ function createChatWindow(): void {
   chatWindow.on('closed', () => {
     chatWindow = null
     currentScreenshot = null
-    currentChat = null
+    messageHistory = []
   })
 }
 
@@ -154,18 +153,18 @@ function createTray(): void {
   const contextMenu = Menu.buildFromTemplate([
     {
       label: 'Take Screenshot (⌘+Shift+S)',
-      click: () => takeScreenshot(),
+      click: () => takeScreenshot()
     },
     { type: 'separator' },
     {
       label: 'Settings',
-      click: () => createSettingsWindow(),
+      click: () => createSettingsWindow()
     },
     { type: 'separator' },
     {
       label: 'Quit',
-      click: () => app.quit(),
-    },
+      click: () => app.quit()
+    }
   ])
 
   tray.setToolTip('Screenshot OCR')
@@ -194,7 +193,7 @@ async function takeScreenshot(): Promise<void> {
     }
 
     const imageBuffer = fs.readFileSync(screenshotPath)
-    currentChat = null
+    messageHistory = []
     currentScreenshot = imageBuffer.toString('base64')
 
     if (chatWindow) {
@@ -207,8 +206,7 @@ async function takeScreenshot(): Promise<void> {
 
     fs.unlinkSync(screenshotPath)
   } catch (error) {
-    console.error('Screenshot error:', error)
-  } finally {
+    console.error('Error taking screenshot:', error)
     tray?.setToolTip('Screenshot OCR')
   }
 }
@@ -224,39 +222,70 @@ async function processImageWithPrompt(
       throw new Error('Gemini API not initialized')
     }
 
-    if (!currentChat) {
-      const model = genAI.getGenerativeModel({ model: 'gemini-2.0-flash-exp' })
-      currentChat = model.startChat({
-        history: [],
-        generationConfig: {
-          temperature: 1.0,
-          maxOutputTokens: 2048,
-        },
-      })
-    }
+    const model = genAI.getGenerativeModel({ model: 'gemini-2.0-flash-exp' })
 
-    const message = [
+    const newMessage: Part[] = [
       {
         inlineData: {
           data: base64Image,
-          mimeType: 'image/png',
-        },
+          mimeType: 'image/png'
+        }
       },
-      prompt,
+      { text: prompt }
     ]
 
+    if (messageHistory.length === 0) {
+      messageHistory = [
+        {
+          role: 'user',
+          parts: newMessage
+        }
+      ]
+    } else {
+      messageHistory.push({
+        role: 'user',
+        parts: newMessage
+      })
+    }
+
+    const chat = model.startChat({
+      history: messageHistory.slice(0, -1),
+      generationConfig: {
+        temperature: 1.0,
+        maxOutputTokens: 2048
+      }
+    })
+
     if (shouldStream) {
-      const result = await currentChat.sendMessageStream(message)
+      const result = await chat.sendMessageStream(newMessage)
+      let fullResponse = ''
       for await (const chunk of result.stream) {
         const chunkText = chunk.text()
+        fullResponse += chunkText
         event?.sender.send('stream-chunk', chunkText)
       }
+
+      messageHistory.push({
+        role: 'model',
+        parts: [{ text: fullResponse }]
+      })
       return null
     }
-    const result = await currentChat.sendMessage(message)
-    return result.response.text()
+
+    const result = await chat.sendMessage(newMessage)
+    const responseText = result.response.text()
+
+    messageHistory.push({
+      role: 'model',
+      parts: [{ text: responseText }]
+    })
+
+    return responseText
   } catch (error) {
-    throw new Error(error instanceof Error ? error.message : 'Failed to process image')
+    if (error instanceof Error) {
+      throw error
+    }
+    throw new Error('Failed to process image')
   }
 }
 
@@ -293,7 +322,7 @@ ipcMain.on('copy-to-clipboard', (_event, text: string) => {
 })
 
 ipcMain.on('reset-chat', () => {
-  currentChat = null
+  messageHistory = []
 })
 
 app.whenReady().then(() => {
