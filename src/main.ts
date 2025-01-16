@@ -1,7 +1,7 @@
 import { execSync } from 'node:child_process'
 import fs from 'node:fs'
 import path from 'node:path'
-import { GoogleGenerativeAI, type Content, type Part } from '@google/generative-ai'
+import { type Content, GoogleGenerativeAI, type Part } from '@google/generative-ai'
 import {
   BrowserWindow,
   type Event,
@@ -46,7 +46,8 @@ const store = new Store<StoreSchema>({
     customPrompts: [
       {
         name: 'Extract Text',
-        prompt: 'Extract and return only the text from this image, without any additional commentary.',
+        prompt:
+          'Extract and return only the text from this image, without any additional commentary.',
         copyToClipboard: true,
         closeAfterResponse: false
       },

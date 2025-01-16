@@ -52,7 +52,7 @@
   "javascript": {
     "formatter": {
       "quoteStyle": "single",
-      "trailingCommas": "es5",
+      "trailingCommas": "none",
       "semicolons": "asNeeded",
       "arrowParentheses": "asNeeded"
     }
